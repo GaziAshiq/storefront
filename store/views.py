@@ -8,18 +8,24 @@ from .serializers import ProductSerializer
 
 
 # Create your views here.
-@api_view(['GET'])
+@api_view(['GET', 'POST'])
 def product_list(request: Request) -> Response:
-    products:Product = Product.objects.select_related('collection').all()
-    serializer:ProductSerializer = ProductSerializer(products, many=True, context={'request': request})
-    return Response(serializer.data)
+    if request.method == 'GET':
+        products: Product = Product.objects.select_related('collection').all()[0:10]
+        serializer: ProductSerializer = ProductSerializer(products, many=True, context={'request': request})
+        return Response(serializer.data)
+    elif request.method == 'POST':
+        serializer = ProductSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        print(serializer.validated_data)
+        return Response('ok')
 
 
 @api_view(['GET'])
 def product_detail(request: Request, id: int) -> Response:
-    product:Product = (get_object_or_404
-                       (Product, pk=id)) #get_objector_404 is a shortcut to get an object or raise a 404 error
-    serializer:ProductSerializer = ProductSerializer(product, context={'request': request})
+    product: Product = (get_object_or_404
+                        (Product, pk=id))  # get_objector_404 is a shortcut to get an object or raise a 404 error
+    serializer: ProductSerializer = ProductSerializer(product, context={'request': request})
     return Response(serializer.data)
 
 
