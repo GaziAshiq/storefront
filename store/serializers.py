@@ -4,32 +4,50 @@ from rest_framework import serializers
 from .models import Product, Collection
 
 
+class CollectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model: Collection = Collection
+        fields: list = ['id', 'title']
+
+
 class ProductSerializer(serializers.ModelSerializer):
     price: Decimal = serializers.DecimalField(source='unit_price', max_digits=10, decimal_places=2,
                                               min_value=Decimal('0.01'))
     price_with_tax: Decimal = serializers.SerializerMethodField(method_name='get_price_with_tax')
+
     collection = serializers.HyperlinkedRelatedField(
-        read_only=True,
+        queryset=Collection.objects.all(),
         view_name='store:collection_detail'
     )
 
     class Meta:
         model: Product = Product
-        fields: list = ['id', 'title', 'price', 'price_with_tax', 'collection']
+        fields: list = ['id', 'title', 'description', 'slug', 'inventory', 'price', 'price_with_tax', 'collection']
 
     @staticmethod
     def get_price_with_tax(obj: Product) -> Decimal:
         # Calculate price with tax and set to 2 decimal places
-        price_with_tax = obj.unit_price * Decimal(1.10)
+        price_with_tax: Decimal = obj.unit_price * Decimal(1.10)
         return price_with_tax.quantize(Decimal('0.00'), rounding=ROUND_HALF_UP)
 
+    # region Example of overriding methods
+    # I can override the create method to customize the creation of a new object
+    # def create(self, validated_data):
+    #     # Create a new Product object
+    #     product: Product = Product.objects.create(**validated_data)
+    #     # product.other = 1 # add a custom field
+    #     product.save()  # save the object
+    #     return product  # It's called by the serializer.save() method, if we try to create a new object'
+    #
+    # # I can override the update method to customize the update of an existing object
+    # def update(self, instance, validated_data):
+    #     # Update an existing Product object
+    #     instance.title = validated_data.get('title', instance.title)
+    #     instance.save()
+    #     return instance  # It's called by the serializer.save() method, if we try to update an existing object'
+    # endregion
 
-class CollectionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model: Collection = Collection
-        fields: list = ['id', 'title', 'featured_product']
-
-# region base Serializers
+# region (old) base Serializers
 # class ProductSerializer(serializers.Serializer):
 #     """
 #     The ProductSerializer class is a custom serializer for the Product model.
