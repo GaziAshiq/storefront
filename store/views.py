@@ -1,17 +1,62 @@
-from typing import Tuple
-
 from django.db.models import Count
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.request import Request
+from rest_framework.views import APIView
 
 from .models import Product, Collection
 from .serializers import ProductSerializer, CollectionSerializer
 
 
-# Create your views here.
+# region Class-based views. (New way) - Class-based views are more powerful and flexible than function-based views.
+class ProductList(APIView):
+    def get(self, request: Request) -> Response:
+        products: Product = Product.objects.select_related('collection').order_by('-id')[0:5]
+        serializer = ProductSerializer(products, many=True, context={'request': request})
+        return Response(serializer.data)
+
+    def post(self, request: Request) -> Response:
+        serializer = ProductSerializer(data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class ProductDetail(APIView):
+    def get(self, request: Request, pk: int) -> Response:
+        product: Product = (get_object_or_404(Product, pk=pk))
+        serializer = ProductSerializer(product, context={'request': request})
+        return Response(serializer.data)
+
+    def put(self, request: Request, pk: int) -> Response:
+        product: Product = (get_object_or_404(Product, pk=pk))
+        serializer = ProductSerializer(product, data=request.data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def patch(self, request: Request, pk: int) -> Response:
+        product: Product = (get_object_or_404(Product, pk=pk))
+        serializer = ProductSerializer(product, data=request.data, partial=True, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request: Request, pk: int) -> Response:
+        product: Product = (get_object_or_404(Product, pk=pk))
+        temp: tuple[int, str] = (product.id, product.title)
+        product.delete()
+        return Response({'message': f'ID: {temp[0]} - {temp[1]}, deleted successfully!'},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+# endregion
+
+
+# region Function-based views. (Old way) - Function-based views take a request and return a response.
+"""
 @api_view(['GET', 'POST'])
 def product_list(request: Request) -> Response:
     if request.method == 'GET':
@@ -48,7 +93,7 @@ def product_detail(request: Request, id: int) -> Response:
         product.delete()
         return Response({'message': f'{temp} deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
-
+"""
 @api_view(['GET', 'POST'])
 def collection_list(request: Request) -> Response:
     if request.method == 'GET':
@@ -80,10 +125,11 @@ def collection_detail(request: Request, pk: int) -> Response:
         serializer.save()
         return Response(serializer.data)
     elif request.method == 'DELETE':
-        temp: Tuple = (collection.id, collection.title)
+        temp: tuple = (collection.id, collection.title)
         if collection.product_set.count() > 0:
             return Response({'message': f'ID: {temp[0]} - {temp[1]} has products, cannot be deleted!'},
                             status=status.HTTP_409_CONFLICT)
         collection.delete()
         return Response({'message': f'ID: {temp[0]} - {temp[1]}, deleted successfully!'},
                         status=status.HTTP_204_NO_CONTENT)
+# endregion
