@@ -6,12 +6,55 @@ from rest_framework.response import Response
 from rest_framework.request import Request
 from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
 
 from .models import Product, Collection
 from .serializers import ProductSerializer, CollectionSerializer
 
 
+# region (ViewSets) more powerful and compact.
+"""
+modelViewSet is a class that provides CRUD operations by default.
+It is a more powerful and compact way to implement views.
+for urls, we can use the DefaultRouter class to automatically generate the URL patterns.
+"""
+class ProductViewSet(ModelViewSet):
+    queryset: Product = Product.objects.select_related('collection').order_by('-id')
+    serializer_class: ProductSerializer = ProductSerializer
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+    def destroy(self, *args, **kwargs):
+        # override the destroy method to customize the deletion of an object
+        product: Product = (get_object_or_404(Product, pk=kwargs['pk']))
+        temp: tuple[int, str] = (product.id, product.title)
+        return Response({'message': f'ID: {temp[0]} - {temp[1]}, deleted successfully!'},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+class CollectionViewSet(ModelViewSet):
+    queryset: Collection = Collection.objects.annotate(products_count=Count('product')).all().order_by('id')
+    serializer_class: CollectionSerializer = CollectionSerializer
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+    def destroy(self, *args, **kwargs) -> Response:
+        collection: Collection = (get_object_or_404(Collection, pk=kwargs['pk']))
+        temp: tuple = (collection.id, collection.title)
+        if collection.product_set.count() > 0:
+            return Response({'message': f'ID: {temp[0]} - {temp[1]} has products, cannot be deleted!'},
+                            status=status.HTTP_409_CONFLICT)
+        collection.delete()
+        return Response({'message': f'ID: {temp[0]} - {temp[1]}, deleted successfully!'},
+                        status=status.HTTP_204_NO_CONTENT)
+
+
+# endregion
+
 # region (Concrete View Classes) more powerful and flexible than APIView.
+"""
 class ProductList(ListCreateAPIView):
     queryset: Product = Product.objects.select_related('collection').order_by('-id')[0:5]
     serializer_class: ProductSerializer = ProductSerializer
@@ -25,9 +68,9 @@ class ProductList(ListCreateAPIView):
     #     # if I need customizations, I can write code here
     #     return ProductSerializer
 
-    # def get_serializer_context(self):
-    #     # This method is needed to pass the request object to the serializer.
-    #     return {'request': self.request}
+    def get_serializer_context(self):
+        # This method is needed to pass the request object to the serializer.
+        return {'request': self.request}
 
 
 class ProductDetail(RetrieveUpdateDestroyAPIView):
@@ -46,6 +89,8 @@ class CollectionList(ListCreateAPIView):
     queryset: Collection = Collection.objects.annotate(products_count=Count('product')).all().order_by('id')
     serializer_class: CollectionSerializer = CollectionSerializer
 
+    def get_serializer_context(self):
+        return {'request': self.request}
 
 class CollectionDetail(RetrieveUpdateDestroyAPIView):
     queryset: Collection = Collection.objects.annotate(products_count=Count('product'))
@@ -61,7 +106,7 @@ class CollectionDetail(RetrieveUpdateDestroyAPIView):
         return Response({'message': f'ID: {temp[0]} - {temp[1]}, deleted successfully!'},
                         status=status.HTTP_204_NO_CONTENT)
 
-
+"""
 # endregion
 
 # region (APIView) Class-based views (New way) - more powerful and flexible than function-based views.
@@ -108,7 +153,6 @@ class ProductDetailAPIView(APIView):
 
 """
 # endregion
-
 
 # region Function-based views. (Old way) - Function-based views take a request and return a response.
 """

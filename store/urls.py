@@ -1,16 +1,29 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework import routers
 from . import views
 
 # URLConf
 app_name = 'store'
 
-# region Class-based views URL patterns (New way)
+# Router
+router = routers.DefaultRouter()
+router.register('product', views.ProductViewSet)
+router.register('collection', views.CollectionViewSet)
+
+# URL patterns
 urlpatterns = [
+    path('', include(router.urls)),
+]
+
+# region Class-based views URL patterns (New way)
+"""
+urlpatterns += [
     path('', views.ProductList.as_view(), name='product_list'),
     path('<int:pk>/', views.ProductDetail.as_view(), name='product_detail'),
     path('collection/', views.CollectionList.as_view(), name='collection_list'),
     path('collection/<int:pk>/', views.CollectionDetail.as_view(), name='collection_detail'),
 ]
+"""
 # endregion
 
 # region Function-based views URL patterns (Old way)

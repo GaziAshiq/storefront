@@ -19,7 +19,7 @@ class ProductSerializer(serializers.ModelSerializer):
 
     collection = serializers.HyperlinkedRelatedField(
         queryset=Collection.objects.all(),
-        view_name='store:collection_detail'
+        view_name='store:collection-detail'
     )
 
     class Meta:
