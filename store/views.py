@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.request import Request
-from rest_framework.generics import ListCreateAPIView
+from rest_framework.generics import ListCreateAPIView, RetrieveUpdateDestroyAPIView
 from rest_framework.views import APIView
 
 from .models import Product, Collection
@@ -25,17 +25,41 @@ class ProductList(ListCreateAPIView):
     #     # if I need customizations, I can write code here
     #     return ProductSerializer
 
-    def get_serializer_context(self):
-        # This method is needed to pass the request object to the serializer.
-        return {'request': self.request}
+    # def get_serializer_context(self):
+    #     # This method is needed to pass the request object to the serializer.
+    #     return {'request': self.request}
+
+
+class ProductDetail(RetrieveUpdateDestroyAPIView):
+    queryset: Product = Product.objects.all()
+    serializer_class: ProductSerializer = ProductSerializer
+
+    def delete(self, request: Request, pk: int) -> Response:
+        product: Product = (get_object_or_404(Product, pk=pk))
+        temp: tuple[int, str] = (product.id, product.title)
+        product.delete()
+        return Response({'message': f'ID: {temp[0]} - {temp[1]}, deleted successfully!'},
+                        status=status.HTTP_204_NO_CONTENT)
 
 
 class CollectionList(ListCreateAPIView):
     queryset: Collection = Collection.objects.annotate(products_count=Count('product')).all().order_by('id')
     serializer_class: CollectionSerializer = CollectionSerializer
 
-    def get_serializer_context(self):
-        return {'request': self.request}
+
+class CollectionDetail(RetrieveUpdateDestroyAPIView):
+    queryset: Collection = Collection.objects.annotate(products_count=Count('product'))
+    serializer_class: CollectionSerializer = CollectionSerializer
+
+    def delete(self, request: Request, pk: int) -> Response:
+        collection: Collection = (get_object_or_404(Collection, pk=pk))
+        temp: tuple = (collection.id, collection.title)
+        if collection.product_set.count() > 0:
+            return Response({'message': f'ID: {temp[0]} - {temp[1]} has products, cannot be deleted!'},
+                            status=status.HTTP_409_CONFLICT)
+        collection.delete()
+        return Response({'message': f'ID: {temp[0]} - {temp[1]}, deleted successfully!'},
+                        status=status.HTTP_204_NO_CONTENT)
 
 
 # endregion
@@ -53,7 +77,6 @@ class ProductListAPIView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-"""
 
 
 class ProductDetailAPIView(APIView):
@@ -83,7 +106,7 @@ class ProductDetailAPIView(APIView):
         return Response({'message': f'ID: {temp[0]} - {temp[1]}, deleted successfully!'},
                         status=status.HTTP_204_NO_CONTENT)
 
-
+"""
 # endregion
 
 
@@ -138,7 +161,6 @@ def collection_list(request: Request) -> Response:
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
-"""
 
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
@@ -166,4 +188,5 @@ def collection_detail(request: Request, pk: int) -> Response:
         collection.delete()
         return Response({'message': f'ID: {temp[0]} - {temp[1]}, deleted successfully!'},
                         status=status.HTTP_204_NO_CONTENT)
+"""
 # endregion
