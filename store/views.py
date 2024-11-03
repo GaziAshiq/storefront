@@ -4,14 +4,45 @@ from rest_framework import status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.request import Request
+from rest_framework.generics import ListCreateAPIView
 from rest_framework.views import APIView
 
 from .models import Product, Collection
 from .serializers import ProductSerializer, CollectionSerializer
 
 
-# region Class-based views. (New way) - Class-based views are more powerful and flexible than function-based views.
-class ProductList(APIView):
+# region (Concrete View Classes) more powerful and flexible than APIView.
+class ProductList(ListCreateAPIView):
+    queryset: Product = Product.objects.select_related('collection').order_by('-id')[0:5]
+    serializer_class: ProductSerializer = ProductSerializer
+
+    # if I need customizations over the queryset_class or serializer_class, I can write code here
+    # def get_queryset(self):
+    #     # if I need customizations, I can write code here
+    #     return Product.objects.select_related('collection').order_by('-id')[0:5]
+
+    # def get_serializer_class(self):
+    #     # if I need customizations, I can write code here
+    #     return ProductSerializer
+
+    def get_serializer_context(self):
+        # This method is needed to pass the request object to the serializer.
+        return {'request': self.request}
+
+
+class CollectionList(ListCreateAPIView):
+    queryset: Collection = Collection.objects.annotate(products_count=Count('product')).all().order_by('id')
+    serializer_class: CollectionSerializer = CollectionSerializer
+
+    def get_serializer_context(self):
+        return {'request': self.request}
+
+
+# endregion
+
+# region (APIView) Class-based views (New way) - more powerful and flexible than function-based views.
+"""
+class ProductListAPIView(APIView):
     def get(self, request: Request) -> Response:
         products: Product = Product.objects.select_related('collection').order_by('-id')[0:5]
         serializer = ProductSerializer(products, many=True, context={'request': request})
@@ -22,9 +53,10 @@ class ProductList(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+"""
 
 
-class ProductDetail(APIView):
+class ProductDetailAPIView(APIView):
     def get(self, request: Request, pk: int) -> Response:
         product: Product = (get_object_or_404(Product, pk=pk))
         serializer = ProductSerializer(product, context={'request': request})
@@ -93,7 +125,8 @@ def product_detail(request: Request, id: int) -> Response:
         product.delete()
         return Response({'message': f'{temp} deleted successfully!'}, status=status.HTTP_204_NO_CONTENT)
 
-"""
+
+
 @api_view(['GET', 'POST'])
 def collection_list(request: Request) -> Response:
     if request.method == 'GET':
@@ -105,6 +138,7 @@ def collection_list(request: Request) -> Response:
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+"""
 
 
 @api_view(['GET', 'PUT', 'PATCH', 'DELETE'])
